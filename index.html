@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Connect Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-10px); }
+      40%, 80% { transform: translateX(10px); }
+    }
+    .shake { animation: shake 0.4s ease-in-out; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <div id="pinAuthScreen" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center p-4">
+    <div id="pinContainer" class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-slate-800 text-center space-y-6">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 mb-2">
+        <i class="fa-solid fa-lock text-2xl"></i>
+      </div>
+      <div>
+        <h2 class="text-2xl font-extrabold text-slate-900">Family Access PIN</h2>
+        <p class="text-xs text-slate-500 mt-1">Enter 4-digit security code to open portal</p>
+      </div>
+
+      <div class="flex justify-center items-center gap-3 py-2">
+        <div id="dot-0" class="w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></div>
+        <div id="dot-1" class="w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></div>
+        <div id="dot-2" class="w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></div>
+        <div id="dot-3" class="w-4 h-4 rounded-full border-2 border-slate-300 transition-all"></div>
+      </div>
+
+      <div id="pinError" class="text-xs font-semibold text-rose-500 min-h-[1rem]"></div>
+
+      <div class="grid grid-cols-3 gap-3 pt-2">
+        <button onclick="pressNum('1')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">1</button>
+        <button onclick="pressNum('2')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">2</button>
+        <button onclick="pressNum('3')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">3</button>
+        <button onclick="pressNum('4')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">4</button>
+        <button onclick="pressNum('5')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">5</button>
+        <button onclick="pressNum('6')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">6</button>
+        <button onclick="pressNum('7')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">7</button>
+        <button onclick="pressNum('8')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">8</button>
+        <button onclick="pressNum('9')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">9</button>
+        <button onclick="clearPin()" class="py-3.5 text-xs font-bold uppercase rounded-2xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition-colors active:scale-95">Clear</button>
+        <button onclick="pressNum('0')" class="py-3.5 text-lg font-bold rounded-2xl bg-slate-100 text-slate-800 hover:bg-indigo-50 hover:text-indigo-600 transition-colors active:scale-95">0</button>
+        <button onclick="deleteNum()" class="py-3.5 text-slate-600 rounded-2xl bg-slate-100 hover:bg-slate-200 transition-colors active:scale-95"><i class="fa-solid fa-delete-left text-lg"></i></button>
+      </div>
+      <p class="text-[11px] text-slate-400 pt-2">Default demo code: <strong class="text-slate-600 font-semibold">1234</strong></p>
+    </div>
+  </div>
+
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+            <i class="fa-solid fa-house-chimney-window text-lg"></i>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg text-slate-900 leading-tight">Family Hub</h1>
+            <p class="text-xs text-slate-500 font-medium">Synced in Real-Time</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="hidden sm:flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+            <span class="text-xs font-semibold px-2 text-slate-500">Filter:</span>
+            <button onclick="filterByMember('all')" class="member-filter-btn px-2.5 py-1 text-xs font-bold rounded-lg transition-all bg-white text-indigo-600 shadow-sm" data-member="all">All</button>
+            <button onclick="filterByMember('Mom')" class="member-filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900" data-member="Amma">Amma</button>
+            <button onclick="filterByMember('Raja')" class="member-filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900" data-member="Raja">Raja</button>
+            <button onclick="filterByMember('Krishna')" class="member-filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900" data-member="Krishna">Krishna</button>
+            <button onclick="filterByMember('Harini')" class="member-filter-btn px-2.5 py-1 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900" data-member="Harini">Harini</button>
+          </div>
+
+          <button onclick="lockPortal()" title="Lock Portal" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs p-2.5 rounded-xl flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-lock text-slate-500"></i>
+            <span class="hidden md:inline">Lock</span>
+          </button>
+
+          <button onclick="openModal('quickAddModal')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs sm:text-sm px-3.5 py-2 rounded-xl flex items-center gap-2 shadow-sm shadow-indigo-200 transition-all active:scale-95">
+            <i class="fa-solid fa-plus"></i>
+            <span class="hidden xs:inline">Add Item</span>
+          </button>
+        </div>
+      </div>
+
+      <nav class="flex gap-2 border-t border-slate-100 pt-1 -mb-px overflow-x-auto custom-scrollbar">
+        <button onclick="switchTab('schedules')" id="tab-schedules" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 flex items-center gap-2 whitespace-nowrap">
+          <i class="fa-regular fa-calendar-check text-base"></i> Master Schedule <span id="badge-events" class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+        </button>
+        <button onclick="switchTab('homework')" id="tab-homework" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
+          <i class="fa-solid fa-graduation-cap text-base"></i> Kids Homework & Projects <span id="badge-homework" class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+        </button>
+        <button onclick="switchTab('trips')" id="tab-trips" class="tab-btn px-4 py-3 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
+          <i class="fa-solid fa-plane-departure text-base"></i> Trips & Travel Planner <span id="badge-trips" class="bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div id="filterBanner" class="hidden mb-4 bg-indigo-50 border border-indigo-200 rounded-xl p-3 flex items-center justify-between text-xs text-indigo-800">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-filter text-indigo-500"></i>
+        <span>Filtering all views for: <strong id="activeFilterName" class="font-bold">Mom</strong></span>
+      </div>
+      <button onclick="filterByMember('all')" class="underline hover:text-indigo-950 font-semibold">Clear filter</button>
+    </div>
+
+    <section id="sec-schedules" class="tab-content space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Family Master Schedule</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Keep track of sync calls, flights, sports practices, and appointments across locations.</p>
+        </div>
+        <button onclick="openModal('addEventModal')" class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-plus text-xs"></i> New Event
+        </button>
+      </div>
+      <div id="eventsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+
+    <section id="sec-homework" class="tab-content hidden space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Kids Homework & Projects Hub</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Track assignments, due dates, test preps, and parent approvals in real-time.</p>
+        </div>
+        <button onclick="openModal('addHomeworkModal')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-plus text-xs"></i> Add Assignment
+        </button>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="bg-slate-100/80 rounded-2xl p-4 border border-slate-200">
+          <div class="flex items-center justify-between mb-3 px-1"><span class="font-bold text-slate-700 text-sm">To Do</span><span id="count-todo" class="bg-white border border-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span></div>
+          <div id="homework-todo" class="space-y-3 min-h-[150px]"></div>
+        </div>
+        <div class="bg-slate-100/80 rounded-2xl p-4 border border-slate-200">
+          <div class="flex items-center justify-between mb-3 px-1"><span class="font-bold text-slate-700 text-sm">In Progress</span><span id="count-inprogress" class="bg-white border border-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span></div>
+          <div id="homework-inprogress" class="space-y-3 min-h-[150px]"></div>
+        </div>
+        <div class="bg-slate-100/80 rounded-2xl p-4 border border-slate-200">
+          <div class="flex items-center justify-between mb-3 px-1"><span class="font-bold text-slate-700 text-sm">Completed</span><span id="count-done" class="bg-white border border-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full font-bold">0</span></div>
+          <div id="homework-done" class="space-y-3 min-h-[150px]"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-trips" class="tab-content hidden space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Family Vacations & Reunion Trips</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Plan logistics, itineraries, packing checklists, and flights for family reunions.</p>
+        </div>
+        <button onclick="openModal('addTripModal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm">
+          <i class="fa-solid fa-plus text-xs"></i> Plan New Trip
+        </button>
+      </div>
+      <div id="tripsContainer" class="space-y-6"></div>
+    </section>
+  </main>
+
+  <div id="quickAddModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-slate-900">Add New Entry</h3><button onclick="closeModal('quickAddModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+      <div class="space-y-3">
+        <button onclick="closeModal('quickAddModal'); openModal('addEventModal')" class="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center"><i class="fa-regular fa-calendar-plus text-lg"></i></div>
+          <div><div class="font-bold text-sm text-slate-800">Schedule Event</div><div class="text-xs text-slate-500">Sync call, appointment, sports practice, flight</div></div>
+        </button>
+        <button onclick="closeModal('quickAddModal'); openModal('addHomeworkModal')" class="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-book-bookmark text-lg"></i></div>
+          <div><div class="font-bold text-sm text-slate-800">Homework / School Project</div><div class="text-xs text-slate-500">Assignment due dates, subjects, submission status</div></div>
+        </button>
+        <button onclick="closeModal('quickAddModal'); openModal('addTripModal')" class="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:border-violet-500 hover:bg-violet-50/50 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center"><i class="fa-solid fa-plane text-lg"></i></div>
+          <div><div class="font-bold text-sm text-slate-800">Family Trip / Travel Plan</div><div class="text-xs text-slate-500">Vacation itinerary, accommodation, dates</div></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addEventModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-slate-900">Add Schedule Event</h3><button onclick="closeModal('addEventModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+      <form id="eventForm" onsubmit="saveEvent(event)" class="space-y-4">
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Event Title</label><input type="text" id="ev-title" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Date</label><input type="date" id="ev-date" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Time</label><input type="time" id="ev-time" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Person</label>
+            <select id="ev-member" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200">
+              <option value="Amma">Amma</option><option value="Raja">Raja</option><option value="Krishna">Krishna</option><option value="Harini">Harini</option><option value="Everyone">Everyone</option>
+            </select>
+          </div>
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Location</label><input type="text" id="ev-location" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        </div>
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notes</label><textarea id="ev-notes" rows="2" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></textarea></div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('addEventModal')" class="px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl">Save Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addHomeworkModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-slate-900">Add Homework</h3><button onclick="closeModal('addHomeworkModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+      <form id="hwForm" onsubmit="saveHomework(event)" class="space-y-4">
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Assignment Title</label><input type="text" id="hw-title" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Student</label><select id="hw-member" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"><option value="Krishna">Krishna</option><option value="Harini">Harini</option></select></div>
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Subject</label><input type="text" id="hw-subject" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Due Date</label><input type="date" id="hw-due" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Status</label><select id="hw-status" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"><option value="todo">To Do</option><option value="inprogress">In Progress</option><option value="done">Completed</option></select></div>
+        </div>
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notes</label><input type="text" id="hw-notes" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('addHomeworkModal')" class="px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-xl">Save Assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="addTripModal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100">
+      <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg text-slate-900">Plan Family Trip</h3><button onclick="closeModal('addTripModal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button></div>
+      <form id="tripForm" onsubmit="saveTrip(event)" class="space-y-4">
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Trip Name</label><input type="text" id="trip-title" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Start Date</label><input type="date" id="trip-start" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">End Date</label><input type="date" id="trip-end" required class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        </div>
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Lodging</label><input type="text" id="trip-lodging" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        <div><label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Checklist (Comma separated)</label><input type="text" id="trip-checklist" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200"></div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('addTripModal')" class="px-4 py-2 text-xs font-semibold text-slate-600">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold bg-violet-600 text-white rounded-xl">Create Trip</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // 1. FIREBASE INITIALIZATION (REPLACE WITH YOUR KEYS FROM FIREBASE CONSOLE)
+    // -------------------------------------------------------------
+    //const firebaseConfig = {
+    //  apiKey: "YOUR_API_KEY",
+    //  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    //  projectId: "YOUR_PROJECT_ID",
+    //  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    //  messagingSenderId: "YOUR_SENDER_ID",
+    //  appId: "YOUR_APP_ID"
+    // };
+    
+    const firebaseConfig = {
+  apiKey: "AIzaSyA1CBPwmAlQSq2xKcZwqxjD3MBHDG6PHdo",
+  authDomain: "familyplanner-826bf.firebaseapp.com",
+  projectId: "familyplanner-826bf",
+  storageBucket: "familyplanner-826bf.firebasestorage.app",
+  messagingSenderId: "452092004562",
+  appId: "1:452092004562:web:bf124f31986eee2202c50b",
+  measurementId: "G-ZTSLHRD0ZR"
+  };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // -------------------------------------------------------------
+    // 2. PIN AUTHENTICATION LOGIC
+    // -------------------------------------------------------------
+    const CORRECT_PIN = "1234";
+    let enteredPin = "";
+
+    function updatePinDots() {
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (i < enteredPin.length) {
+          dot.classList.add('bg-indigo-600', 'border-indigo-600');
+          dot.classList.remove('border-slate-300');
+        } else {
+          dot.classList.remove('bg-indigo-600', 'border-indigo-600');
+          dot.classList.add('border-slate-300');
+        }
+      }
+    }
+
+    function pressNum(num) {
+      if (enteredPin.length < 4) {
+        enteredPin += num;
+        updatePinDots();
+        document.getElementById('pinError').textContent = "";
+        if (enteredPin.length === 4) setTimeout(verifyPin, 150);
+      }
+    }
+
+    function deleteNum() {
+      if (enteredPin.length > 0) {
+        enteredPin = enteredPin.slice(0, -1);
+        updatePinDots();
+        document.getElementById('pinError').textContent = "";
+      }
+    }
+
+    function clearPin() {
+      enteredPin = "";
+      updatePinDots();
+      document.getElementById('pinError').textContent = "";
+    }
+
+    function verifyPin() {
+      if (enteredPin === CORRECT_PIN) {
+        document.getElementById('pinAuthScreen').classList.add('hidden');
+        sessionStorage.setItem('familyHubAuthenticated', 'true');
+        enteredPin = "";
+        updatePinDots();
+      } else {
+        const pinContainer = document.getElementById('pinContainer');
+        pinContainer.classList.add('shake');
+        document.getElementById('pinError').textContent = "Incorrect PIN. Try again.";
+        enteredPin = "";
+        updatePinDots();
+        setTimeout(() => pinContainer.classList.remove('shake'), 400);
+      }
+    }
+
+    function lockPortal() {
+      sessionStorage.removeItem('familyHubAuthenticated');
+      document.getElementById('pinAuthScreen').classList.remove('hidden');
+    }
+
+    if (sessionStorage.getItem('familyHubAuthenticated') === 'true') {
+      document.getElementById('pinAuthScreen').classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------
+    // 3. APPLICATION STATE & FIREBASE REALTIME LISTENERS
+    // -------------------------------------------------------------
+    let currentFilter = 'all';
+    let eventsData = [];
+    let homeworkData = [];
+    let tripsData = [];
+
+    // Attach real-time Firestore listeners
+    db.collection("schedules").onSnapshot((snapshot) => {
+      eventsData = [];
+      snapshot.forEach(doc => eventsData.push({ id: doc.id, ...doc.data() }));
+      renderEvents();
+    });
+
+    db.collection("homework").onSnapshot((snapshot) => {
+      homeworkData = [];
+      snapshot.forEach(doc => homeworkData.push({ id: doc.id, ...doc.data() }));
+      renderHomework();
+    });
+
+    db.collection("trips").onSnapshot((snapshot) => {
+      tripsData = [];
+      snapshot.forEach(doc => tripsData.push({ id: doc.id, ...doc.data() }));
+      renderTrips();
+    });
+
+    const memberColors = {
+      'Mom': { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
+      'Raja': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+      'Krishna': { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+      'Harini': { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
+      'Everyone': { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' }
+    };
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-600', 'text-indigo-600');
+        btn.classList.add('border-transparent', 'text-slate-500');
+      });
+      document.getElementById(`sec-${tabName}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      activeBtn.classList.remove('border-transparent', 'text-slate-500');
+      activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
+    }
+
+    function filterByMember(member) {
+      currentFilter = member;
+      document.querySelectorAll('.member-filter-btn').forEach(btn => {
+        if (btn.dataset.member === member) {
+          btn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+        } else {
+          btn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+        }
+      });
+      const banner = document.getElementById('filterBanner');
+      if (member === 'all') {
+        banner.classList.add('hidden');
+      } else {
+        banner.classList.remove('hidden');
+        document.getElementById('activeFilterName').textContent = member;
+      }
+      renderEvents(); renderHomework(); renderTrips();
+    }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    // RENDER FUNCTIONS
+    function renderEvents() {
+      const container = document.getElementById('eventsContainer');
+      const filtered = eventsData.filter(e => currentFilter === 'all' || e.member === currentFilter || e.member === 'Everyone');
+      document.getElementById('badge-events').textContent = filtered.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">No events scheduled.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(ev => {
+        const style = memberColors[ev.member] || memberColors['Everyone'];
+        return `
+          <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-start gap-2 mb-3">
+                <span class="text-xs font-bold px-2.5 py-1 rounded-lg ${style.bg} ${style.text} border border-slate-200 inline-flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>${ev.member}
+                </span>
+                <button onclick="deleteEvent('${ev.id}')" class="text-slate-300 hover:text-rose-500"><i class="fa-regular fa-trash-can text-xs"></i></button>
+              </div>
+              <h3 class="font-bold text-slate-900 text-base mb-2">${ev.title}</h3>
+              <div class="space-y-1.5 text-xs text-slate-600 mb-4">
+                <div><i class="fa-regular fa-calendar text-slate-400 w-4"></i> ${ev.date} at ${ev.time}</div>
+                ${ev.location ? `<div><i class="fa-solid fa-location-dot text-slate-400 w-4"></i> ${ev.location}</div>` : ''}
+              </div>
+              ${ev.notes ? `<p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">${ev.notes}</p>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderHomework() {
+      const filtered = homeworkData.filter(h => currentFilter === 'all' || h.member === currentFilter);
+      document.getElementById('badge-homework').textContent = filtered.length;
+
+      const columns = { todo: [], inprogress: [], done: [] };
+      filtered.forEach(h => { if (columns[h.status]) columns[h.status].push(h); });
+
+      document.getElementById('count-todo').textContent = columns.todo.length;
+      document.getElementById('count-inprogress').textContent = columns.inprogress.length;
+      document.getElementById('count-done').textContent = columns.done.length;
+
+      ['todo', 'inprogress', 'done'].forEach(status => {
+        const container = document.getElementById(`homework-${status}`);
+        if (columns[status].length === 0) {
+          container.innerHTML = `<div class="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">No items</div>`;
+          return;
+        }
+
+        container.innerHTML = columns[status].map(hw => {
+          const style = memberColors[hw.member] || memberColors['Krishna'];
+          return `
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+              <div class="flex justify-between items-start">
+                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded ${style.bg} ${style.text}">${hw.member}</span>
+                <button onclick="deleteHomework('${hw.id}')" class="text-slate-300 hover:text-rose-500"><i class="fa-regular fa-trash-can text-xs"></i></button>
+              </div>
+              <div class="font-bold text-slate-800 text-sm">${hw.title}</div>
+              <div class="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
+                <span>${hw.subject}</span><span>Due ${hw.due}</span>
+              </div>
+              ${hw.notes ? `<p class="text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">${hw.notes}</p>` : ''}
+              <div class="pt-2 flex justify-end gap-1">
+                ${status !== 'todo' ? `<button onclick="moveHomework('${hw.id}', 'todo')" class="text-[10px] bg-slate-100 text-slate-700 px-2 py-1 rounded">To Do</button>` : ''}
+                ${status !== 'inprogress' ? `<button onclick="moveHomework('${hw.id}', 'inprogress')" class="text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded">In Progress</button>` : ''}
+                ${status !== 'done' ? `<button onclick="moveHomework('${hw.id}', 'done')" class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded">Done</button>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      });
+    }
+
+    function renderTrips() {
+      const container = document.getElementById('tripsContainer');
+      document.getElementById('badge-trips').textContent = tripsData.length;
+
+      if (tripsData.length === 0) {
+        container.innerHTML = `<div class="py-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">No trips planned yet.</div>`;
+        return;
+      }
+
+      container.innerHTML = tripsData.map(trip => `
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div class="inline-flex items-center gap-2 text-xs font-bold text-violet-600 bg-violet-50 px-2.5 py-1 rounded-lg border border-violet-100 mb-2">
+                <i class="fa-solid fa-plane"></i> ${trip.start} to ${trip.end}
+              </div>
+              <h3 class="text-xl font-bold text-slate-900">${trip.title}</h3>
+              <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-hotel text-slate-400 mr-1"></i> Lodging: ${trip.lodging || 'TBD'}</p>
+            </div>
+            <button onclick="deleteTrip('${trip.id}')" class="text-slate-400 hover:text-rose-500 text-xs font-semibold">Delete Trip</button>
+          </div>
+          <div class="mt-4">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Pre-trip Checklist</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              ${(trip.items || []).map((item, idx) => `
+                <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100 cursor-pointer text-xs font-medium text-slate-700">
+                  <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleTripItem('${trip.id}', ${idx})" class="rounded text-violet-600 w-4 h-4">
+                  <span class="${item.done ? 'line-through text-slate-400' : ''}">${item.text}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // FIREBASE DATABASE WRITE ACTIONS
+    function saveEvent(e) {
+      e.preventDefault();
+      db.collection("schedules").add({
+        title: document.getElementById('ev-title').value,
+        date: document.getElementById('ev-date').value,
+        time: document.getElementById('ev-time').value,
+        member: document.getElementById('ev-member').value,
+        location: document.getElementById('ev-location').value,
+        notes: document.getElementById('ev-notes').value
+      });
+      closeModal('addEventModal');
+      document.getElementById('eventForm').reset();
+    }
+
+    function saveHomework(e) {
+      e.preventDefault();
+      db.collection("homework").add({
+        title: document.getElementById('hw-title').value,
+        member: document.getElementById('hw-member').value,
+        subject: document.getElementById('hw-subject').value,
+        due: document.getElementById('hw-due').value,
+        status: document.getElementById('hw-status').value,
+        notes: document.getElementById('hw-notes').value
+      });
+      closeModal('addHomeworkModal');
+      document.getElementById('hwForm').reset();
+    }
+
+    function saveTrip(e) {
+      e.preventDefault();
+      const rawChecklist = document.getElementById('trip-checklist').value;
+      const items = rawChecklist.split(',')
+        .map(i => i.trim()).filter(i => i.length > 0)
+        .map(i => ({ text: i, done: false }));
+
+      db.collection("trips").add({
+        title: document.getElementById('trip-title').value,
+        start: document.getElementById('trip-start').value,
+        end: document.getElementById('trip-end').value,
+        lodging: document.getElementById('trip-lodging').value,
+        items: items.length ? items : [{ text: 'Book travel', done: false }]
+      });
+      closeModal('addTripModal');
+      document.getElementById('tripForm').reset();
+    }
+
+    function moveHomework(id, newStatus) { db.collection("homework").doc(id).update({ status: newStatus }); }
+    function deleteEvent(id) { db.collection("schedules").doc(id).delete(); }
+    function deleteHomework(id) { db.collection("homework").doc(id).delete(); }
+    function deleteTrip(id) { db.collection("trips").doc(id).delete(); }
+
+    function toggleTripItem(tripId, itemIndex) {
+      const trip = tripsData.find(t => t.id === tripId);
+      if (trip && trip.items[itemIndex]) {
+        trip.items[itemIndex].done = !trip.items[itemIndex].done;
+        db.collection("trips").doc(tripId).update({ items: trip.items });
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Connect Hub</title>
+  
+  <!-- Tailwind CSS & FontAwesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- FullCalendar CSS & JS -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
+  <!-- Firebase Compatibility SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  
+  <!-- Inside <header> of public/index.html -->
+<div class="flex items-center gap-3">
+  <!-- USER PROFILE AVATAR IMAGE -->
+  <img id="userAvatar" 
+       src="https://api.dicebear.com/7.x/bottts/svg?seed=default" 
+       alt="User Profile Picture" 
+       class="w-10 h-10 rounded-full border-2 border-indigo-500 object-cover shadow-sm cursor-pointer hover:opacity-90" 
+       title="Click to edit profile" />
+       
+  <div>
+    <h1 class="font-bold text-lg text-slate-900 leading-none">Family Connect Hub</h1>
+    <p id="userDisplay" class="text-[11px] text-slate-400 font-medium"></p>
+  </div>
+</div>
+
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+  <!-- AUTH OVERLAY MODAL -->
+  <div id="authOverlay" class="fixed inset-0 z-50 bg-slate-900/90 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center space-y-5 shadow-2xl">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 mb-1">
+        <i class="fa-solid fa-user-lock text-xl"></i>
+      </div>
+      <h2 class="text-2xl font-extrabold text-slate-900">Family Sign In</h2>
+      <p class="text-xs text-slate-500">Sign in to access schedule, homework & portal</p>
+
+      <form id="loginForm" class="space-y-3 text-left pt-2">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email</label>
+          <input type="email" id="authEmail" required placeholder="family@domain.com" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+          <input type="password" id="authPassword" required placeholder="••••••••" class="w-full text-sm px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-600">
+        </div>
+        <div id="authError" class="text-xs font-semibold text-rose-500 min-h-[1rem]"></div>
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm shadow-indigo-200">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- GENERIC ADD EVENT FORM MODAL -->
+  <div id="modalOverlay" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 id="modalTitle" class="text-lg font-bold text-slate-900">Add New Item</h3>
+        <button id="closeModalBtn" class="text-slate-400 hover:text-slate-600 text-sm font-bold">✕</button>
+      </div>
+      <form id="modalForm" class="space-y-3">
+        <div id="modalFields"></div>
+        <div class="flex justify-end gap-2 pt-3 border-t">
+          <button type="button" id="cancelModalBtn" class="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200">Cancel</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 shadow-sm">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app" class="hidden min-h-screen flex flex-col">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-sm">
+              <i class="fa-solid fa-house-chimney-window"></i>
+            </div>
+            <div>
+              <h1 class="font-bold text-lg text-slate-900 leading-none">Family Connect Hub</h1>
+              <p id="userDisplay" class="text-[11px] text-slate-400 font-medium"></p>
+            </div>
+          </div>
+          <button id="lockBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition-colors">
+            Sign Out
+          </button>
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <nav class="flex gap-6 border-t border-slate-100 pt-2 -mb-px">
+          <button class="nav-tab text-indigo-600 border-b-2 border-indigo-600 pb-2 font-semibold text-sm" data-tab="schedules">
+            <i class="fa-regular fa-calendar-check mr-1.5"></i> Schedule
+          </button>
+          <button class="nav-tab text-slate-500 pb-2 font-medium text-sm" data-tab="homework">
+            <i class="fa-solid fa-book-bookmark mr-1.5"></i> Homework
+          </button>
+          <button class="nav-tab text-slate-500 pb-2 font-medium text-sm" data-tab="trips">
+            <i class="fa-solid fa-plane-departure mr-1.5"></i> Trips
+          </button>
+          <button class="nav-tab text-slate-500 pb-2 font-medium text-sm" data-tab="corkboard">
+            <i class="fa-solid fa-note-sticky mr-1.5"></i> Fridge Door
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div id="tabContent"></div>
+    </main>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

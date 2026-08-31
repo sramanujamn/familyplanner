@@ -115,15 +115,19 @@ router.post('/members', async (req, res) => {
 
 // GET /api/family/profile - Get logged-in user profile with avatar
 router.get('/profile', async (req, res) => {
-  res.json({
-    firstName: req.user.firstName,
-    lastName: req.user.lastName,
-    nickname: req.user.nickname,
-    photoURL: req.user.photoURL,
-    dob: req.user.dob,
-    phone: req.user.phone,
-    email: req.user.email
-  });
+  try {
+    res.json({
+      firstName: req.user.firstName || '',
+      lastName: req.user.lastName || '',
+      nickname: req.user.nickname || '',
+      photoURL: req.user.photoURL || '',
+      dob: req.user.dob || '',
+      phone: req.user.phone || '',
+      email: req.user.email || ''
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch profile", details: err.message });
+  }
 });
 
 // PUT /api/family/profile - Update user profile & avatar picture
@@ -132,14 +136,14 @@ router.put('/profile', async (req, res) => {
   try {
     const { firstName, lastName, nickname, photoURL, dob, phone } = req.body;
 
-    await db.collection('users').doc(req.user.uid).update({
+    await db.collection('users').doc(req.user.uid).set({
       firstName: firstName || '',
       lastName: lastName || '',
       nickname: nickname || '',
       photoURL: photoURL || '',
       dob: dob || '',
       phone: phone || ''
-    });
+    }, { merge: true });
 
     res.json({ success: true });
   } catch (err) {

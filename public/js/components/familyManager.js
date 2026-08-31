@@ -7,74 +7,77 @@ export async function getOrPromptFamilyWorkspace() {
   const familyData = await API.getFamily();
 
   if (!familyData.hasFamily) {
-    const choice = prompt(
-      "Welcome to Family Connect Hub!\n\nType '1' to Create a new Family Workspace\nType '2' to Join an existing Family with a code", 
-      "1"
-    );
-
-    if (choice === "2") {
-      const joinCode = prompt("Enter your Family Join Code (e.g., NAIDU-7429):");
-      const memberName = prompt("Enter your name (e.g. Raja, Amma, Krishna, Harini):");
-      await API.joinFamily(joinCode, memberName);
-    } else {
-      const familyName = prompt("Enter a name for your Family Workspace:", "Naidu Family Workspace");
-      const membersRaw = prompt("Enter initial family members (comma separated):", "Raja, Amma, Krishna, Harini");
-      const initialMembers = membersRaw 
-        ? membersRaw.split(',').map(m => m.trim()).filter(Boolean) 
-        : ["Raja", "Amma", "Krishna", "Harini"];
-
-      await API.createFamily(familyName, initialMembers);
-    }
-
-    return getOrPromptFamilyWorkspace();
+    return new Promise((resolve) => {
+      openWorkspaceModal(resolve);
+    });
   }
 
   activeFamily = familyData;
+  initProfileDropdown();
   renderFamilyHeaderBadge();
   return activeFamily;
 }
 
-function renderFamilyHeaderBadge() {
-  const userDisplay = document.getElementById('userDisplay');
-  if (userDisplay && activeFamily) {
-    userDisplay.innerHTML = `
-      <span class="font-bold text-slate-800">${activeFamily.name}</span>
-      <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded ml-1 border border-indigo-100 font-mono">Code: ${activeFamily.joinCode}</span>
-      <button id="addMemberHeaderBtn" class="ml-2 text-indigo-600 hover:text-indigo-800 font-bold text-xs">+ Add Member</button>
-    `;
+export function initProfileDropdown() {
+  const avatarImg = document.getElementById('userAvatar');
+  const dropdown = document.getElementById('profileDropdown');
 
-    document.getElementById('addMemberHeaderBtn').addEventListener('click', async () => {
-      const newName = prompt("Enter new family member name:");
-      if (newName) {
-        const res = await API.addFamilyMember(newName);
-        if (res.success) {
-          activeFamily.members = res.members;
-          alert(`Added ${newName} to family members!`);
-          location.reload();
-        }
+  if (!avatarImg || !dropdown) return;
+
+  // Toggle dropdown menu on avatar click
+  avatarImg.onclick = (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle('hidden');
+    populateDropdownHeader();
+  };
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target) && e.target !== avatarImg) {
+      dropdown.classList.add('hidden');
+    }
+  });
+
+  // Menu item click handlers
+  const editBtn = document.getElementById('menuEditProfileBtn');
+  if (editBtn) {
+    editBtn.onclick = () => {
+      dropdown.classList.add('hidden');
+      openProfileModal();
+    };
+  }
+
+  const wsBtn = document.getElementById('menuWorkspaceSettingsBtn');
+  if (wsBtn) {
+    wsBtn.onclick = () => {
+      dropdown.classList.add('hidden');
+      openWorkspaceSettingsModal();
+    };
+  }
+
+  const signOutBtn = document.getElementById('menuSignOutBtn');
+  if (signOutBtn) {
+    signOutBtn.onclick = () => {
+      dropdown.classList.add('hidden');
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().signOut();
       }
-    });
+    };
   }
 }
 
-export function getFamilyMemberOptionsHtml(selectedMember = 'Everyone') {
-  const members = activeFamily && activeFamily.members && activeFamily.members.length 
-    ? activeFamily.members 
-    : ["Raja", "Amma", "Krishna", "Harini"];
+async function populateDropdownHeader() {
+  try {
+    const profile = await API.getProfile();
+    const nicknameEl = document.getElementById('menuUserNickname');
+    const emailEl = document.getElementById('menuUserEmail');
+    const avatarImg = document.getElementById('userAvatar');
 
-  let html = `<option value="Everyone" ${selectedMember === 'Everyone' ? 'selected' : ''}>Everyone</option>`;
-  members.forEach(m => {
-    html += `<option value="${m}" ${selectedMember === m ? 'selected' : ''}>${m}</option>`;
-  });
-  return html;
-}
-
-// public/js/components/familyManager.js
-export function renderUserProfileBadge(user) {
-  const avatarImg = document.getElementById('userAvatar');
-  if (avatarImg && user.photoURL) {
-    avatarImg.src = user.photoURL;
-    avatarImg.onclick = openProfileModal;
+    if (nicknameEl) nicknameEl.textContent = profile.nickname || 'User';
+    if (emailEl) emailEl.textContent = profile.email || '';
+    if (avatarImg && profile.photoURL) avatarImg.src = profile.photoURL;
+  } catch (err) {
+    console.warn("Non-blocking profile load warning:", err);
   }
 }
 
@@ -86,7 +89,7 @@ export async function openProfileModal() {
 
   const profile = await API.getProfile();
 
-  modalTitle.textContent = "User Profile & Picture";
+  modalTitle.textContent = "Edit User Profile & Picture";
   modalFields.innerHTML = `
     <div class="flex justify-center mb-3">
       <img src="${profile.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=default'}" class="w-20 h-20 rounded-full border-2 border-indigo-600 object-cover shadow">
@@ -139,4 +142,155 @@ export async function openProfileModal() {
     closeModal();
     location.reload();
   };
+}
+
+export function openWorkspaceSettingsModal() {
+  const overlay = document.getElementById('workspaceSettingsModalOverlay');
+  const joinCodeEl = document.getElementById('wsSettingJoinCode');
+  const copyBtn = document.getElementById('copyJoinCodeBtn');
+  const rosterContainer = document.getElementById('wsSettingsRosterList');
+  const closeBtn = document.getElementById('closeWsSettingsModalBtn');
+  const doneBtn = document.getElementById('doneWsSettingsBtn');
+  const addMemberBtn = document.getElementById('wsAddMemberModalBtn');
+
+  if (!activeFamily) return;
+
+  joinCodeEl.textContent = activeFamily.joinCode || 'N/A';
+  
+  rosterContainer.innerHTML = (activeFamily.members || []).map(m => `
+    <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 shadow-sm">
+      <i class="fa-solid fa-user-tag text-indigo-400 mr-1.5 text-[10px]"></i> ${m}
+    </span>
+  `).join('');
+
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(activeFamily.joinCode);
+    copyBtn.textContent = "Copied!";
+    setTimeout(() => { copyBtn.textContent = "Copy Code"; }, 2000);
+  };
+
+  overlay.classList.remove('hidden');
+  const closeModal = () => overlay.classList.add('hidden');
+
+  closeBtn.onclick = closeModal;
+  doneBtn.onclick = closeModal;
+  addMemberBtn.onclick = () => {
+    closeModal();
+    openAddMemberModal();
+  };
+}
+
+function openWorkspaceModal(onSuccessCallback) {
+  const overlay = document.getElementById('workspaceModalOverlay');
+  const tabCreate = document.getElementById('tabCreateMode');
+  const tabJoin = document.getElementById('tabJoinMode');
+  const createForm = document.getElementById('createWorkspaceForm');
+  const joinForm = document.getElementById('joinWorkspaceForm');
+  const closeBtn = document.getElementById('closeWorkspaceModalBtn');
+
+  if (!overlay) return;
+
+  overlay.classList.remove('hidden');
+
+  tabCreate.onclick = () => {
+    tabCreate.className = "flex-1 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition-all";
+    tabJoin.className = "flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-700 transition-all";
+    createForm.classList.remove('hidden');
+    joinForm.classList.add('hidden');
+  };
+
+  tabJoin.onclick = () => {
+    tabJoin.className = "flex-1 py-2 rounded-lg bg-white text-indigo-600 shadow-sm transition-all";
+    tabCreate.className = "flex-1 py-2 rounded-lg text-slate-500 hover:text-slate-700 transition-all";
+    joinForm.classList.remove('hidden');
+    createForm.classList.add('hidden');
+  };
+
+  closeBtn.onclick = () => overlay.classList.add('hidden');
+
+  createForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('wsName').value.trim();
+    const rawMembers = document.getElementById('wsMembers').value;
+    const initialMembers = rawMembers ? rawMembers.split(',').map(m => m.trim()).filter(Boolean) : ["Raja", "Amma", "Krishna", "Harini"];
+
+    const res = await API.createFamily(name, initialMembers);
+    if (res.success) {
+      overlay.classList.add('hidden');
+      const updatedFamily = await API.getFamily();
+      activeFamily = updatedFamily;
+      renderFamilyHeaderBadge();
+      onSuccessCallback(activeFamily);
+    }
+  };
+
+  joinForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const joinCode = document.getElementById('wsJoinCode').value.trim();
+    const memberName = document.getElementById('wsMemberName').value.trim();
+
+    try {
+      const res = await API.joinFamily(joinCode, memberName);
+      if (res.success) {
+        overlay.classList.add('hidden');
+        const updatedFamily = await API.getFamily();
+        activeFamily = updatedFamily;
+        renderFamilyHeaderBadge();
+        onSuccessCallback(activeFamily);
+      }
+    } catch (err) {
+      alert("Invalid Join Code. Please check and try again.");
+    }
+  };
+}
+
+function openAddMemberModal() {
+  const overlay = document.getElementById('addMemberModalOverlay');
+  const form = document.getElementById('addMemberForm');
+  const closeBtn = document.getElementById('closeAddMemberModalBtn');
+  const cancelBtn = document.getElementById('cancelAddMemberBtn');
+
+  if (!overlay) return;
+
+  overlay.classList.remove('hidden');
+  const closeModal = () => overlay.classList.add('hidden');
+
+  closeBtn.onclick = closeModal;
+  cancelBtn.onclick = closeModal;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const newName = document.getElementById('newMemberNameInput').value.trim();
+    if (newName) {
+      const res = await API.addFamilyMember(newName);
+      if (res.success) {
+        activeFamily.members = res.members;
+        closeModal();
+        location.reload();
+      }
+    }
+  };
+}
+
+function renderFamilyHeaderBadge() {
+  const userDisplay = document.getElementById('userDisplay');
+  if (userDisplay && activeFamily) {
+    userDisplay.innerHTML = `
+      <span class="font-bold text-slate-800">${activeFamily.name}</span>
+      <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded ml-1 border border-indigo-100 font-mono">Code: ${activeFamily.joinCode}</span>
+    `;
+  }
+}
+
+// REQUIRED EXPORT FOR SCHEDULE.JS & HOMEWORK.JS FORM DROPDOWNS
+export function getFamilyMemberOptionsHtml(selectedMember = 'Everyone') {
+  const members = activeFamily && activeFamily.members && activeFamily.members.length 
+    ? activeFamily.members 
+    : ["Raja", "Amma", "Krishna", "Harini"];
+
+  let html = `<option value="Everyone" ${selectedMember === 'Everyone' ? 'selected' : ''}>Everyone</option>`;
+  members.forEach(m => {
+    html += `<option value="${m}" ${selectedMember === m ? 'selected' : ''}>${m}</option>`;
+  });
+  return html;
 }

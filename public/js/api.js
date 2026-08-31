@@ -125,6 +125,14 @@ export const API = {
       body: JSON.stringify({ familyId, newMember })
     });
     return res.json();
-  }
+  },
+  
+  // Get Profile
+  getProfile: async () => fetch('/api/family/profile', { headers: await getAuthHeaders() }).then(r => r.json()),
+  updateProfile: async (data) => fetch('/api/family/profile', {
+    method: 'PUT',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
   
 };

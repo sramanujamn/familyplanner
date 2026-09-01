@@ -294,3 +294,62 @@ export function getFamilyMemberOptionsHtml(selectedMember = 'Everyone') {
   });
   return html;
 }
+
+// Live Presence Roster Rendering
+export async function renderFamilyPresenceRoster() {
+  const rosterContainer = document.getElementById('familyPresenceRoster');
+  if (!rosterContainer) return;
+
+  try {
+    // 1. Send heartbeat ping for active user
+    await API.updatePresence();
+
+    // 2. Fetch all registered family users from Firestore
+    const users = await API.getFamilyUsers();
+
+    if (!Array.isArray(users) || !users.length) {
+      rosterContainer.innerHTML = '';
+      return;
+    }
+
+    const now = new Date().getTime();
+    const ONLINE_THRESHOLD_MS = 3 * 60 * 1000; // Active within last 3 minutes = Online
+
+    rosterContainer.innerHTML = users.map(user => {
+      const lastActiveTime = user.lastActive ? new Date(user.lastActive).getTime() : 0;
+      const isOnline = (now - lastActiveTime) < ONLINE_THRESHOLD_MS;
+      
+      // FIX: Check nickname, firstName, or fallback to email handle
+      const displayName = user.nickname || user.firstName || (user.email ? user.email.split('@')[0] : 'User');
+      const avatarSrc = user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${displayName}`;
+
+      return `
+        <div class="relative group cursor-pointer" title="${displayName} (${isOnline ? 'Online' : 'Offline'})">
+          <img src="${avatarSrc}" 
+               alt="${displayName}" 
+               class="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover bg-slate-100 shadow-sm" />
+          
+          <!-- Real-Time Online / Offline Indicator Dot -->
+          <span class="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}"></span>
+          
+          <!-- Tooltip on Hover showing actual Nickname -->
+          <div class="absolute bottom-full mb-1 right-1/2 translate-x-1/2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none">
+            <span class="bg-slate-900 text-white text-[10px] font-semibold py-1 px-2 rounded-lg whitespace-nowrap shadow-md">
+              ${displayName} ${isOnline ? '🟢 Online' : '⚪ Offline'}
+            </span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.warn("Presence roster update error:", err);
+  }
+}
+
+// Automatically start periodic presence heartbeats & roster refreshes
+export function startPresencePolling() {
+  renderFamilyPresenceRoster();
+  // Refresh presence state every 60 seconds
+  setInterval(renderFamilyPresenceRoster, 60000);
+}

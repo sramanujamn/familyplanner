@@ -17,41 +17,53 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   
   <!-- Inside <header> of public/index.html -->
-<div class="flex items-center gap-3">
-<!-- PROFILE AVATAR & DROPDOWN MENU CONTAINER -->
-  <div class="relative">
-    <img id="userAvatar" 
-         src="https://api.dicebear.com/7.x/bottts/svg?seed=default" 
-         alt="User Profile Picture" 
-         class="w-10 h-10 rounded-full border-2 border-indigo-500 object-cover shadow-sm cursor-pointer hover:opacity-90 transition-opacity" 
-         title="Click for settings menu" />
-
-    <!-- DROPDOWN MENU -->
-    <div id="profileDropdown" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 py-2 divide-y divide-slate-100 animate-in fade-in slide-in-from-top-2 duration-150">
-      <!-- User Quick Info -->
-      <div class="px-4 py-3">
-        <p id="menuUserNickname" class="text-sm font-bold text-slate-900 truncate">Loading...</p>
-        <p id="menuUserEmail" class="text-xs text-slate-400 truncate">user@email.com</p>
-      </div>
-
-      <!-- Menu Actions -->
-      <div class="py-1">
-        <button id="menuEditProfileBtn" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-          <i class="fa-regular fa-user text-indigo-500 w-4"></i> Edit Profile & Picture
-        </button>
-        <button id="menuWorkspaceSettingsBtn" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-          <i class="fa-solid fa-house-user text-indigo-500 w-4"></i> Family Workspace Settings
-        </button>
-      </div>
-
-      <!-- Sign Out Action -->
-      <div class="py-1">
-        <button id="menuSignOutBtn" class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
-          <i class="fa-solid fa-arrow-right-from-bracket text-rose-500 w-4"></i> Sign Out
-        </button>
+<div class="flex items-center justify-between h-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <!-- Left Side: Logged-in User Profile Dropdown & Title -->
+  <div class="flex items-center gap-3">
+    <div class="relative">
+      <img id="userAvatar" 
+           src="https://api.dicebear.com/7.x/bottts/svg?seed=default" 
+           alt="User Profile Picture" 
+           class="w-10 h-10 rounded-full border-2 border-indigo-500 object-cover shadow-sm cursor-pointer hover:opacity-90 transition-opacity" />
+      
+      <!-- Dropdown Menu -->
+      <div id="profileDropdown" class="hidden absolute left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 py-2 divide-y divide-slate-100">
+        <div class="px-4 py-3">
+          <p id="menuUserNickname" class="text-sm font-bold text-slate-900 truncate">Loading...</p>
+          <p id="menuUserEmail" class="text-xs text-slate-400 truncate"></p>
+        </div>
+        <div class="py-1">
+          <button id="menuEditProfileBtn" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+            <i class="fa-regular fa-user text-indigo-500 w-4"></i> Edit Profile & Picture
+          </button>
+          <button id="menuWorkspaceSettingsBtn" class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+            <i class="fa-solid fa-house-user text-indigo-500 w-4"></i> Family Workspace Settings
+          </button>
+        </div>
+        <div class="py-1">
+          <button id="menuSignOutBtn" class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-right-from-bracket text-rose-500 w-4"></i> Sign Out
+          </button>
+        </div>
       </div>
     </div>
+
+    <div>
+      <h1 class="font-bold text-lg text-slate-900 leading-none">Family Connect Hub</h1>
+      <p id="userDisplay" class="text-[11px] text-slate-400 font-medium"></p>
+    </div>
   </div>
+
+  <!-- Right Side: Family Group Presence Avatars -->
+  <div class="flex items-center gap-4">
+    <div class="flex items-center -space-x-2 overflow-hidden py-1" id="familyPresenceRoster">
+      <!-- Avatars dynamically render here -->
+    </div>
+    <button id="lockBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3 py-2 rounded-xl font-semibold transition-colors">
+      Sign Out
+    </button>
+  </div>
+</div>
 
   <div>
     <h1 class="font-bold text-lg text-slate-900 leading-none">Family Connect Hub</h1>

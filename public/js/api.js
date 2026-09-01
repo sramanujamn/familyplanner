@@ -1,4 +1,9 @@
 // public/js/api.js
+
+/**
+ * Helper function to retrieve the current Firebase Auth ID Token.
+ * Forces a token refresh to prevent stale authentication or 403 Forbidden errors.
+ */
 async function getAuthHeaders() {
   const headers = { 'Content-Type': 'application/json' };
 
@@ -6,7 +11,6 @@ async function getAuthHeaders() {
     const user = firebase.auth().currentUser;
     if (user) {
       try {
-        // Force refresh token to prevent stale 403s
         const token = await user.getIdToken(/* forceRefresh */ true);
         headers['Authorization'] = `Bearer ${token}`;
       } catch (err) {
@@ -19,120 +23,168 @@ async function getAuthHeaders() {
 }
 
 export const API = {
-  // Schedules
-  getEvents: async () => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/events', { headers });
-    return res.json();
-  },
-  createEvent: async (data) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/events', { method: 'POST', headers, body: JSON.stringify(data) });
-    return res.json();
-  },
-  deleteEvent: async (id) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/events/${id}`, { method: 'DELETE', headers });
-    return res.json();
-  },
+  // ==========================================
+  // FAMILY WORKSPACE & PROFILE MANAGEMENT
+  // ==========================================
 
-  // Homework
-  getHomework: async () => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/homework', { headers });
-    return res.json();
-  },
-  createHomework: async (data) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/homework', { method: 'POST', headers, body: JSON.stringify(data) });
-    return res.json();
-  },
-  updateHomeworkStatus: async (id, status) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/homework/${id}`, { method: 'PATCH', headers, body: JSON.stringify({ status }) });
-    return res.json();
-  },
-  deleteHomework: async (id) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/homework/${id}`, { method: 'DELETE', headers });
-    return res.json();
-  },
+  /**
+   * Fetches the current user's workspace profile and family details.
+   */
+  getFamily: async () => 
+    fetch('/api/family', { headers: await getAuthHeaders() }).then(r => r.json()),
 
-  // Trips
-  getTrips: async () => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/trips', { headers });
-    return res.json();
-  },
-  createTrip: async (data) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/trips', { method: 'POST', headers, body: JSON.stringify(data) });
-    return res.json();
-  },
-  updateTripChecklist: async (id, items) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/trips/${id}/checklist`, { method: 'PATCH', headers, body: JSON.stringify({ items }) });
-    return res.json();
-  },
-  deleteTrip: async (id) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/trips/${id}`, { method: 'DELETE', headers });
-    return res.json();
-  },
-
-  // Corkboard / Fridge Door
-  getCorkboard: async () => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/corkboard', { headers });
-    return res.json();
-  },
-  createCorkboardItem: async (data) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/corkboard', { method: 'POST', headers, body: JSON.stringify(data) });
-    return res.json();
-  },
-  updateCorkboardList: async (id, items) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/corkboard/${id}/list`, { method: 'PATCH', headers, body: JSON.stringify({ items }) });
-    return res.json();
-  },
-  deleteCorkboardItem: async (id) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`/api/corkboard/${id}`, { method: 'DELETE', headers });
-    return res.json();
-  },
-
-  // Family Workspace & Dynamic Members
-  getFamily: async () => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/family', { headers });
-    return res.json();
-  },
-  createFamily: async (familyName, initialMembers) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/family/create', {
+  /**
+   * Creates a new family workspace.
+   */
+  createFamily: async (familyName, initialMembers) => 
+    fetch('/api/family/create', {
       method: 'POST',
-      headers,
+      headers: await getAuthHeaders(),
       body: JSON.stringify({ familyName, initialMembers })
-    });
-    return res.json();
-  },
-  addFamilyMember: async (familyId, newMember) => {
-    const headers = await getAuthHeaders();
-    const res = await fetch('/api/family/members', {
+    }).then(r => r.json()),
+
+  /**
+   * Joins an existing family workspace using a Join Code.
+   */
+  joinFamily: async (joinCode, memberName) => 
+    fetch('/api/family/join', {
       method: 'POST',
-      headers,
-      body: JSON.stringify({ familyId, newMember })
-    });
-    return res.json();
-  },
-  
-  // Get Profile
-  getProfile: async () => fetch('/api/family/profile', { headers: await getAuthHeaders() }).then(r => r.json()),
-  updateProfile: async (data) => fetch('/api/family/profile', {
-    method: 'PUT',
-    headers: await getAuthHeaders(),
-    body: JSON.stringify(data)
-  }).then(r => r.json()),
-  
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ joinCode, memberName })
+    }).then(r => r.json()),
+
+  /**
+   * Adds a new member name to the family roster.
+   */
+  addFamilyMember: async (newMember) => 
+    fetch('/api/family/members', {
+      method: 'POST',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify({ newMember })
+    }).then(r => r.json()),
+
+  /**
+   * Fetches all registered user profiles in the active family workspace.
+   */
+  getFamilyUsers: async () => 
+    fetch('/api/family/users', { headers: await getAuthHeaders() }).then(r => r.json()),
+
+  /**
+   * Sends a heartbeat ping to mark the active user as online.
+   */
+  updatePresence: async () => 
+    fetch('/api/family/presence', { 
+      method: 'POST', 
+      headers: await getAuthHeaders() 
+    }).then(r => r.json()),
+
+  /**
+   * Gets the logged-in user's profile metadata.
+   */
+  getProfile: async () => 
+    fetch('/api/family/profile', { headers: await getAuthHeaders() }).then(r => r.json()),
+
+  /**
+   * Updates the logged-in user's profile details.
+   */
+  updateProfile: async (data) => 
+    fetch('/api/family/profile', {
+      method: 'PUT',
+      headers: await getAuthHeaders(),
+      body: JSON.stringify(data)
+    }).then(r => r.json()),
+
+  // ==========================================
+  // SCHEDULE EVENTS
+  // ==========================================
+
+  getEvents: async () => 
+    fetch('/api/events', { headers: await getAuthHeaders() }).then(r => r.json()),
+
+  createEvent: async (data) => 
+    fetch('/api/events', { 
+      method: 'POST', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify(data) 
+    }).then(r => r.json()),
+
+  deleteEvent: async (id) => 
+    fetch(`/api/events/${id}`, { 
+      method: 'DELETE', 
+      headers: await getAuthHeaders() 
+    }).then(r => r.json()),
+
+  // ==========================================
+  // HOMEWORK & ASSIGNMENTS
+  // ==========================================
+
+  getHomework: async () => 
+    fetch('/api/homework', { headers: await getAuthHeaders() }).then(r => r.json()),
+
+  createHomework: async (data) => 
+    fetch('/api/homework', { 
+      method: 'POST', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify(data) 
+    }).then(r => r.json()),
+
+  updateHomeworkStatus: async (id, status) => 
+    fetch(`/api/homework/${id}`, { 
+      method: 'PATCH', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify({ status }) 
+    }).then(r => r.json()),
+
+  deleteHomework: async (id) => 
+    fetch(`/api/homework/${id}`, { 
+      method: 'DELETE', 
+      headers: await getAuthHeaders() 
+    }).then(r => r.json()),
+
+  // ==========================================
+  // TRIPS & VACATION PLANNING
+  // ==========================================
+
+  getTrips: async () => 
+    fetch('/api/trips', { headers: await getAuthHeaders() }).then(r => r.json()),
+
+  createTrip: async (data) => 
+    fetch('/api/trips', { 
+      method: 'POST', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify(data) 
+    }).then(r => r.json()),
+
+  deleteTrip: async (id) => 
+    fetch(`/api/trips/${id}`, { 
+      method: 'DELETE', 
+      headers: await getAuthHeaders() 
+    }).then(r => r.json()),
+
+  // ==========================================
+  // CORKBOARD / FRIDGE DOOR
+  // ==========================================
+
+  getCorkboard: async () => 
+    fetch('/api/corkboard', { headers: await getAuthHeaders() }).then(r => r.json()),
+
+  createCorkboardItem: async (data) => 
+    fetch('/api/corkboard', { 
+      method: 'POST', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify(data) 
+    }).then(r => r.json()),
+
+  updateCorkboardList: async (id, items) => 
+    fetch(`/api/corkboard/${id}/list`, { 
+      method: 'PATCH', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify({ items }) 
+    }).then(r => r.json()),
+
+  deleteCorkboardItem: async (id) => 
+    fetch(`/api/corkboard/${id}`, { 
+      method: 'DELETE', 
+      headers: await getAuthHeaders() 
+    }).then(r => r.json())
 };

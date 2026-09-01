@@ -3,6 +3,7 @@ import { renderHomework } from './components/homework.js';
 import { renderTrips } from './components/trips.js';
 import { renderCorkboard } from './components/corkboard.js';
 import { getOrPromptFamilyWorkspace } from './components/familyManager.js';
+import { startPresencePolling } from './components/familyManager.js';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1CBPwmAlQSq2xKcZwqxjD3MBHDG6PHdo",
@@ -30,19 +31,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (typeof firebase !== 'undefined' && firebase.auth) {
     firebase.auth().onAuthStateChanged(async (user) => {
-      if (user) {
-        if (authOverlay) authOverlay.classList.add('hidden');
-        if (appContainer) appContainer.classList.remove('hidden');
-    
-        // Ensure family workspace & dynamic members are loaded
-        await getOrPromptFamilyWorkspace();
+  if (user) {
+    if (authOverlay) authOverlay.classList.add('hidden');
+    if (appContainer) appContainer.classList.remove('hidden');
 
-        loadTab(currentTab);
-    } else {
-      if (appContainer) appContainer.classList.add('hidden');
-      if (authOverlay) authOverlay.classList.remove('hidden');
-    }
-  });
+    await getOrPromptFamilyWorkspace();
+    startPresencePolling(); // <-- START PRESENCE MONITORING
+    loadTab(currentTab);
+  } else {
+    if (appContainer) appContainer.classList.add('hidden');
+    if (authOverlay) authOverlay.classList.remove('hidden');
+  }
+});
       
   }
 

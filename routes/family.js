@@ -151,4 +151,46 @@ router.put('/profile', async (req, res) => {
   }
 });
 
+// GET /api/family/users - Fetch all registered users in the current family workspace
+router.get('/users', async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Database unavailable." });
+  if (!req.user.familyId) return res.status(400).json({ error: "No active family workspace." });
+
+  try {
+    const snapshot = await db.collection('users')
+      .where('familyId', '==', req.user.familyId)
+      .get();
+
+    const familyUsers = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        uid: doc.id,
+        nickname: data.nickname || '',
+        firstName: data.firstName || '',
+        email: data.email || '',
+        photoURL: data.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${doc.id}`,
+        lastActive: data.lastActive || null
+      };
+    });
+
+    res.json(familyUsers);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch family users", details: err.message });
+  }
+});
+
+// POST /api/family/presence - Heartbeat ping to mark user online
+router.post('/presence', async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Database unavailable." });
+  try {
+    await db.collection('users').doc(req.user.uid).set({
+      lastActive: new Date().toISOString()
+    }, { merge: true });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update presence", details: err.message });
+  }
+});
+
 module.exports = router;

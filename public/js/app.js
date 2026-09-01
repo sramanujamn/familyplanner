@@ -4,6 +4,8 @@ import { renderTrips } from './components/trips.js';
 import { renderCorkboard } from './components/corkboard.js';
 import { getOrPromptFamilyWorkspace } from './components/familyManager.js';
 import { startPresencePolling } from './components/familyManager.js';
+import { initForgotPasswordHandlers } from './components/familyManager.js';
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyA1CBPwmAlQSq2xKcZwqxjD3MBHDG6PHdo",
@@ -21,6 +23,11 @@ if (typeof firebase !== 'undefined' && !firebase.apps.length) {
 
 let currentTab = 'schedules';
 
+//document.addEventListener('DOMContentLoaded', () => {
+//  initForgotPasswordHandlers();
+//});
+
+
 document.addEventListener('DOMContentLoaded', () => {
   const authOverlay = document.getElementById('authOverlay');
   const appContainer = document.getElementById('app');
@@ -31,20 +38,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (typeof firebase !== 'undefined' && firebase.auth) {
     firebase.auth().onAuthStateChanged(async (user) => {
-  if (user) {
-    if (authOverlay) authOverlay.classList.add('hidden');
-    if (appContainer) appContainer.classList.remove('hidden');
+      if (user) {
+        if (authOverlay) authOverlay.classList.add('hidden');
+        if (appContainer) appContainer.classList.remove('hidden');
 
-    await getOrPromptFamilyWorkspace();
-    startPresencePolling(); // <-- START PRESENCE MONITORING
-    loadTab(currentTab);
-  } else {
-    if (appContainer) appContainer.classList.add('hidden');
-    if (authOverlay) authOverlay.classList.remove('hidden');
-  }
-});
+        await getOrPromptFamilyWorkspace();
+        startPresencePolling(); // <-- START PRESENCE MONITORING
+        loadTab(currentTab);
+      } else {
+      if (appContainer) appContainer.classList.add('hidden');
+      if (authOverlay) authOverlay.classList.remove('hidden');
+      }
+    });
       
   }
+  
+  initForgotPasswordHandlers();
 
   if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {

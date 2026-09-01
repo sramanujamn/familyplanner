@@ -89,7 +89,7 @@ export async function openProfileModal() {
 
   const profile = await API.getProfile();
 
-  modalTitle.textContent = "Edit User Profile & Picture";
+  modalTitle.textContent = "Edit User Profile & Settings";
   modalFields.innerHTML = `
     <div class="flex justify-center mb-3">
       <img src="${profile.photoURL || 'https://api.dicebear.com/7.x/bottts/svg?seed=default'}" class="w-20 h-20 rounded-full border-2 border-indigo-600 object-cover shadow">
@@ -122,12 +122,38 @@ export async function openProfileModal() {
       <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Phone Number</label>
       <input type="tel" id="pfPhone" value="${profile.phone || ''}" placeholder="+1-201-555-0199" class="w-full text-xs p-2.5 border rounded-xl">
     </div>
+
+    <!-- Security & Password Reset Action -->
+    <div class="pt-3 border-t">
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Account Security</label>
+      <button type="button" id="sendResetFromProfileBtn" class="w-full py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl border border-indigo-100 transition-colors">
+        <i class="fa-solid fa-key mr-1.5"></i> Send Password Reset Email
+      </button>
+      <p id="profileResetFeedback" class="text-[10px] text-emerald-600 mt-1 hidden text-center font-semibold"></p>
+    </div>
   `;
 
   overlay.classList.remove('hidden');
   const closeModal = () => overlay.classList.add('hidden');
   document.getElementById('closeModalBtn').onclick = closeModal;
   document.getElementById('cancelModalBtn').onclick = closeModal;
+
+  // Handle direct reset button inside logged-in profile modal
+  document.getElementById('sendResetFromProfileBtn').onclick = async () => {
+    const feedback = document.getElementById('profileResetFeedback');
+    const user = firebase.auth().currentUser;
+    if (user && user.email) {
+      try {
+        await firebase.auth().sendPasswordResetEmail(user.email);
+        feedback.textContent = `✅ Password reset email sent to ${user.email}`;
+        feedback.classList.remove('hidden');
+      } catch (err) {
+        feedback.textContent = `❌ ${err.message}`;
+        feedback.className = "text-[10px] text-rose-600 mt-1 text-center font-semibold";
+        feedback.classList.remove('hidden');
+      }
+    }
+  };
 
   modalForm.onsubmit = async (e) => {
     e.preventDefault();
@@ -352,4 +378,52 @@ export function startPresencePolling() {
   renderFamilyPresenceRoster();
   // Refresh presence state every 60 seconds
   setInterval(renderFamilyPresenceRoster, 60000);
+}
+
+/**
+ * Initializes Forgot Password modal event listeners for the login screen.
+ */
+export function initForgotPasswordHandlers() {
+  const forgotBtn = document.getElementById('forgotPasswordBtn');
+  const overlay = document.getElementById('forgotPasswordModalOverlay');
+  const closeBtn = document.getElementById('closeForgotPasswordModalBtn');
+  const cancelBtn = document.getElementById('cancelResetBtn');
+  const form = document.getElementById('forgotPasswordForm');
+  const feedbackMsg = document.getElementById('resetFeedbackMsg');
+
+  if (!forgotBtn || !overlay) return;
+
+  const closeModal = () => {
+    overlay.classList.add('hidden');
+    feedbackMsg.classList.add('hidden');
+    form.reset();
+  };
+
+  forgotBtn.onclick = () => {
+    overlay.classList.remove('hidden');
+    const loginEmailInput = document.getElementById('loginEmail');
+    if (loginEmailInput && loginEmailInput.value) {
+      document.getElementById('resetEmailInput').value = loginEmailInput.value;
+    }
+  };
+
+  closeBtn.onclick = closeModal;
+  cancelBtn.onclick = closeModal;
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('resetEmailInput').value.trim();
+
+    try {
+      await firebase.auth().sendPasswordResetEmail(email);
+      feedbackMsg.className = "text-xs p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200";
+      feedbackMsg.textContent = "✅ Reset link sent! Check your inbox.";
+      feedbackMsg.classList.remove('hidden');
+      setTimeout(closeModal, 3000);
+    } catch (err) {
+      feedbackMsg.className = "text-xs p-2.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200";
+      feedbackMsg.textContent = `❌ ${err.message}`;
+      feedbackMsg.classList.remove('hidden');
+    }
+  };
 }

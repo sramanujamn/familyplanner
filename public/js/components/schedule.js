@@ -52,6 +52,7 @@ async function initScheduleView() {
           id: ev.id,
           title: `[${ev.member || 'Everyone'}] ${ev.title}`,
           start: ev.time ? `${ev.date}T${ev.time}` : ev.date,
+          end: ev.endDate ? (ev.endTime ? `${ev.endDate}T${ev.endTime}` : ev.endDate) : undefined,
           backgroundColor: getMemberColor(ev.member),
           borderColor: getMemberColor(ev.member)
         }))
@@ -64,22 +65,40 @@ async function initScheduleView() {
       return;
     }
 
-    grid.innerHTML = events.map(ev => `
-      <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
-        <div>
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">${ev.member || 'Everyone'}</span>
-            <button class="delete-event-btn text-slate-300 hover:text-rose-500" data-id="${ev.id}"><i class="fa-regular fa-trash-can text-xs"></i></button>
+    grid.innerHTML = events.map(ev => {
+      const dateDisplay = (ev.endDate && ev.endDate !== ev.date) 
+        ? `${ev.date} to ${ev.endDate}` 
+        : ev.date;
+
+      const timeDisplay = `${ev.time ? 'at ' + ev.time : ''} ${ev.endTime ? '- ' + ev.endTime : ''}`;
+
+      return `
+        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+          <div class="space-y-3">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
+                ${ev.member || 'Everyone'}
+              </span>
+              <button class="delete-event-btn text-slate-300 hover:text-rose-500 transition-colors" data-id="${ev.id}">
+                <i class="fa-regular fa-trash-can text-xs"></i>
+              </button>
+            </div>
+
+            <h3 class="font-bold text-slate-900 text-base leading-snug">${ev.title}</h3>
+
+            <div class="text-xs text-slate-600 space-y-1">
+              <div>
+                <i class="fa-regular fa-calendar text-slate-400 mr-1.5"></i>
+                ${dateDisplay} ${timeDisplay}
+              </div>
+              ${ev.location ? `<div><i class="fa-solid fa-location-dot text-slate-400 mr-1.5"></i> ${ev.location}</div>` : ''}
+            </div>
+
+            ${ev.notes ? `<p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100">${ev.notes}</p>` : ''}
           </div>
-          <h3 class="font-bold text-slate-900 text-base mb-1">${ev.title}</h3>
-          <div class="text-xs text-slate-600 space-y-1">
-            <div><i class="fa-regular fa-calendar text-slate-400 mr-1.5"></i> ${ev.date} ${ev.time ? 'at ' + ev.time : ''}</div>
-            ${ev.location ? `<div><i class="fa-solid fa-location-dot text-slate-400 mr-1.5"></i> ${ev.location}</div>` : ''}
-          </div>
-          ${ev.notes ? `<p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-3">${ev.notes}</p>` : ''}
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     grid.querySelectorAll('.delete-event-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -117,16 +136,6 @@ function openAddEventModal() {
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div>
-        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Date *</label>
-        <input type="date" id="evDate" required value="${new Date().toISOString().split('T')[0]}" class="w-full text-xs p-2.5 border rounded-xl">
-      </div>
-      <div>
-        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Time (Optional)</label>
-        <input type="time" id="evTime" class="w-full text-xs p-2.5 border rounded-xl">
-      </div>
-    </div>
-    <div class="grid grid-cols-2 gap-2">
-      <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Family Member</label>
         <select id="evMember" class="w-full text-xs p-2.5 border rounded-xl">
           ${getFamilyMemberOptionsHtml()}
@@ -135,6 +144,30 @@ function openAddEventModal() {
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Location</label>
         <input type="text" id="evLocation" placeholder="Address or Zoom link" class="w-full text-xs p-2.5 border rounded-xl">
+      </div>
+    </div>
+    
+    <!-- START DATE & TIME -->
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
+        <input type="date" id="evDate" required value="${new Date().toISOString().split('T')[0]}" class="w-full text-xs p-2.5 border rounded-xl">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Time (Optional)</label>
+        <input type="time" id="evTime" class="w-full text-xs p-2.5 border rounded-xl">
+      </div>
+    </div>
+
+    <!-- END DATE & TIME -->
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Date (Optional)</label>
+        <input type="date" id="evEndDate" class="w-full text-xs p-2.5 border rounded-xl">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Time (Optional)</label>
+        <input type="time" id="evEndTime" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
     </div>
   `;
@@ -151,11 +184,13 @@ function openAddEventModal() {
     const title = document.getElementById('evTitle').value;
     const date = document.getElementById('evDate').value;
     const time = document.getElementById('evTime').value;
+    const endDate = document.getElementById('evEndDate').value;
+    const endTime = document.getElementById('evEndTime').value;
     const member = document.getElementById('evMember').value;
     const location = document.getElementById('evLocation').value;
 
     try {
-      await API.createEvent({ title, date, time, member, location });
+      await API.createEvent({ title, date, time, endDate, endTime, member, location });
       closeModal();
       renderSchedules(document.getElementById('tabContent'));
     } catch (err) {

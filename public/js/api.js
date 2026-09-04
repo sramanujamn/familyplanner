@@ -113,6 +113,13 @@ export const API = {
       method: 'DELETE', 
       headers: await getAuthHeaders() 
     }).then(r => r.json()),
+    
+  updateEvent: async (id, data) => 
+  fetch(`/api/events/${id}`, { 
+    method: 'PUT', 
+    headers: await getAuthHeaders(), 
+    body: JSON.stringify(data) 
+  }).then(r => r.json()),
 
   // ==========================================
   // HOMEWORK & ASSIGNMENTS

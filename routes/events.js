@@ -70,4 +70,40 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/events/:id - Update event inside current family's subcollection
+router.put('/:id', async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Database connection unavailable." });
+  if (!req.user || !req.user.familyId) return res.status(400).json({ error: "User belongs to no family." });
+
+  try {
+    const { id } = req.params;
+    const { title, date, time, endDate, endTime, member, location, notes } = req.body;
+
+    const updateData = {
+      title: title ? title.trim() : "",
+      date: date ? date.trim() : "",
+      time: time ? time.trim() : "",
+      endDate: endDate ? endDate.trim() : "",
+      endTime: endTime ? endTime.trim() : "",
+      member: member ? member.trim() : "Everyone",
+      location: location ? location.trim() : "",
+      notes: notes ? notes.trim() : "",
+      updatedAt: new Date().toISOString()
+    };
+
+    // Reference the exact subcollection path where POST/GET reads from
+    const docRef = db.collection('families')
+      .doc(req.user.familyId)
+      .collection('schedules')
+      .doc(id);
+
+    await docRef.set(updateData, { merge: true });
+
+    res.json({ id, ...updateData, success: true });
+  } catch (err) {
+    console.error(`Error updating event ${req.params.id}:`, err);
+    res.status(500).json({ error: "Failed to update event", details: err.message });
+  }
+});
+
 module.exports = router;

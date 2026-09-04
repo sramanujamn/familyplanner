@@ -26,7 +26,7 @@ export async function renderSchedules(container) {
     </div>
   `;
 
-  document.getElementById('addEventBtn').addEventListener('click', openAddEventModal);
+  document.getElementById('addEventBtn').addEventListener('click', () => openEventModal());
   await initScheduleView();
 }
 
@@ -36,8 +36,9 @@ async function initScheduleView() {
 
   try {
     const events = await API.getEvents();
+    const eventList = Array.isArray(events) ? events : [];
 
-    // Initialize FullCalendar with custom color mapping per family member
+    // Initialize FullCalendar with click-to-edit support
     if (calendarEl && window.FullCalendar) {
       calendarEl.innerHTML = "";
       const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -48,24 +49,40 @@ async function initScheduleView() {
           right: 'dayGridMonth,timeGridWeek'
         },
         height: 'auto',
-        events: (Array.isArray(events) ? events : []).map(ev => ({
+        events: eventList.map(ev => ({
           id: ev.id,
           title: `[${ev.member || 'Everyone'}] ${ev.title}`,
           start: ev.time ? `${ev.date}T${ev.time}` : ev.date,
           end: ev.endDate ? (ev.endTime ? `${ev.endDate}T${ev.endTime}` : ev.endDate) : undefined,
           backgroundColor: getMemberColor(ev.member),
-          borderColor: getMemberColor(ev.member)
-        }))
+          borderColor: getMemberColor(ev.member),
+          extendedProps: { ...ev } // Pass raw object properties for easy retrieval on click
+        })),
+        // Click on calendar item to edit
+        eventClick: (info) => {
+          const rawData = info.event.extendedProps;
+          openEventModal({
+            id: info.event.id,
+            title: rawData.title || '',
+            member: rawData.member || 'Everyone',
+            location: rawData.location || '',
+            date: rawData.date || info.event.startStr.split('T')[0],
+            time: rawData.time || '',
+            endDate: rawData.endDate || '',
+            endTime: rawData.endTime || '',
+            notes: rawData.notes || ''
+          });
+        }
       });
       calendar.render();
     }
 
-    if (!Array.isArray(events) || !events.length) {
+    if (!eventList.length) {
       grid.innerHTML = `<div class="col-span-full py-8 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">No events scheduled.</div>`;
       return;
     }
 
-    grid.innerHTML = events.map(ev => {
+    grid.innerHTML = eventList.map(ev => {
       const dateDisplay = (ev.endDate && ev.endDate !== ev.date) 
         ? `${ev.date} to ${ev.endDate}` 
         : ev.date;
@@ -73,13 +90,13 @@ async function initScheduleView() {
       const timeDisplay = `${ev.time ? 'at ' + ev.time : ''} ${ev.endTime ? '- ' + ev.endTime : ''}`;
 
       return `
-        <div class="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+        <div class="event-card bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex flex-col justify-between cursor-pointer hover:border-indigo-200 transition-all" data-id="${ev.id}">
           <div class="space-y-3">
             <div class="flex justify-between items-start">
               <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100">
                 ${ev.member || 'Everyone'}
               </span>
-              <button class="delete-event-btn text-slate-300 hover:text-rose-500 transition-colors" data-id="${ev.id}">
+              <button class="delete-event-btn text-slate-300 hover:text-rose-500 transition-colors p-1" data-id="${ev.id}">
                 <i class="fa-regular fa-trash-can text-xs"></i>
               </button>
             </div>
@@ -100,8 +117,19 @@ async function initScheduleView() {
       `;
     }).join('');
 
+    // Card click event listener for editing from grid
+    grid.querySelectorAll('.event-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-event-btn')) return;
+        const ev = eventList.find(item => item.id === card.dataset.id);
+        if (ev) openEventModal(ev);
+      });
+    });
+
+    // Delete button click handler
     grid.querySelectorAll('.delete-event-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         await API.deleteEvent(e.currentTarget.dataset.id);
         renderSchedules(document.getElementById('tabContent'));
       });
@@ -112,69 +140,68 @@ async function initScheduleView() {
   }
 }
 
-// Custom color palette for Raja, Amma, Krishna, and Harini
 function getMemberColor(member) {
   switch (member) {
-    case 'Raja': return '#2563eb';      // Blue
-    case 'Amma': return '#e11d48';      // Rose / Red
-    case 'Krishna': return '#059669';   // Emerald / Green
-    case 'Harini': return '#d97706';    // Amber / Orange
-    default: return '#4f46e5';         // Indigo (Everyone)
+    case 'Raja': return '#2563eb';
+    case 'Amma': return '#e11d48';
+    case 'Krishna': return '#059669';
+    case 'Harini': return '#d97706';
+    default: return '#4f46e5';
   }
 }
 
-function openAddEventModal() {
+function openEventModal(eventToEdit = null) {
   const overlay = document.getElementById('modalOverlay');
   const modalTitle = document.getElementById('modalTitle');
   const modalFields = document.getElementById('modalFields');
+  const modalForm = document.getElementById('modalForm');
 
-  modalTitle.textContent = "New Schedule Event";
+  modalTitle.textContent = eventToEdit ? "Edit Schedule Event" : "New Schedule Event";
+  
   modalFields.innerHTML = `
+    <input type="hidden" id="evId" value="${eventToEdit ? eventToEdit.id : ''}">
     <div>
       <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Event Title *</label>
-      <input type="text" id="evTitle" required placeholder="e.g. Flight to California" class="w-full text-xs p-2.5 border rounded-xl">
+      <input type="text" id="evTitle" required value="${eventToEdit ? eventToEdit.title : ''}" placeholder="e.g. Flight to California" class="w-full text-xs p-2.5 border rounded-xl">
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Family Member</label>
         <select id="evMember" class="w-full text-xs p-2.5 border rounded-xl">
-          ${getFamilyMemberOptionsHtml()}
+          ${getFamilyMemberOptionsHtml(eventToEdit ? eventToEdit.member : null)}
         </select>
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Location</label>
-        <input type="text" id="evLocation" placeholder="Address or Zoom link" class="w-full text-xs p-2.5 border rounded-xl">
+        <input type="text" id="evLocation" value="${eventToEdit && eventToEdit.location ? eventToEdit.location : ''}" placeholder="Address or Zoom link" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
     </div>
     
-    <!-- START DATE & TIME -->
     <div class="grid grid-cols-2 gap-2">
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Date *</label>
-        <input type="date" id="evDate" required value="${new Date().toISOString().split('T')[0]}" class="w-full text-xs p-2.5 border rounded-xl">
+        <input type="date" id="evDate" required value="${eventToEdit ? eventToEdit.date : new Date().toISOString().split('T')[0]}" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Start Time (Optional)</label>
-        <input type="time" id="evTime" class="w-full text-xs p-2.5 border rounded-xl">
+        <input type="time" id="evTime" value="${eventToEdit && eventToEdit.time ? eventToEdit.time : ''}" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
     </div>
 
-    <!-- END DATE & TIME -->
     <div class="grid grid-cols-2 gap-2">
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Date (Optional)</label>
-        <input type="date" id="evEndDate" class="w-full text-xs p-2.5 border rounded-xl">
+        <input type="date" id="evEndDate" value="${eventToEdit && eventToEdit.endDate ? eventToEdit.endDate : ''}" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
       <div>
         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">End Time (Optional)</label>
-        <input type="time" id="evEndTime" class="w-full text-xs p-2.5 border rounded-xl">
+        <input type="time" id="evEndTime" value="${eventToEdit && eventToEdit.endTime ? eventToEdit.endTime : ''}" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
     </div>
     
-    <!-- NOTES FIELD -->
     <div>
       <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notes / Description (Optional)</label>
-      <textarea id="evNotes" rows="2" placeholder="Flight confirmation, packing items, or extra details..." class="w-full text-xs p-2.5 border rounded-xl"></textarea>
+      <textarea id="evNotes" rows="2" placeholder="Flight confirmation, packing items, or extra details..." class="w-full text-xs p-2.5 border rounded-xl">${eventToEdit && eventToEdit.notes ? eventToEdit.notes : ''}</textarea>
     </div>
   `;
 
@@ -187,21 +214,28 @@ function openAddEventModal() {
   modalForm.onsubmit = async (e) => {
     e.preventDefault();
 
-    const title = document.getElementById('evTitle').value;
-    const date = document.getElementById('evDate').value;
-    const time = document.getElementById('evTime').value;
-    const endDate = document.getElementById('evEndDate').value;
-    const endTime = document.getElementById('evEndTime').value;
-    const member = document.getElementById('evMember').value;
-    const location = document.getElementById('evLocation').value;
-    const notes = document.getElementById('evNotes').value;
+    const id = document.getElementById('evId').value;
+    const payload = {
+      title: document.getElementById('evTitle').value,
+      date: document.getElementById('evDate').value,
+      time: document.getElementById('evTime').value,
+      endDate: document.getElementById('evEndDate').value,
+      endTime: document.getElementById('evEndTime').value,
+      member: document.getElementById('evMember').value,
+      location: document.getElementById('evLocation').value,
+      notes: document.getElementById('evNotes').value
+    };
 
     try {
-      await API.createEvent({ title, date, time, endDate, endTime, member, location, notes });
+      if (id) {
+        await API.updateEvent(id, payload);
+      } else {
+        await API.createEvent(payload);
+      }
       closeModal();
-      renderSchedules(document.getElementById('tabContent'));
+      await renderSchedules(document.getElementById('tabContent'));
     } catch (err) {
-      console.error("Failed to add event:", err);
+      console.error("Failed to save event:", err);
       alert("Error saving event.");
     }
   };

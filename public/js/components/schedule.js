@@ -170,6 +170,12 @@ function openAddEventModal() {
         <input type="time" id="evEndTime" class="w-full text-xs p-2.5 border rounded-xl">
       </div>
     </div>
+    
+    <!-- NOTES FIELD -->
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Notes / Description (Optional)</label>
+      <textarea id="evNotes" rows="2" placeholder="Flight confirmation, packing items, or extra details..." class="w-full text-xs p-2.5 border rounded-xl"></textarea>
+    </div>
   `;
 
   overlay.classList.remove('hidden');
@@ -188,9 +194,10 @@ function openAddEventModal() {
     const endTime = document.getElementById('evEndTime').value;
     const member = document.getElementById('evMember').value;
     const location = document.getElementById('evLocation').value;
+    const notes = document.getElementById('evNotes').value;
 
     try {
-      await API.createEvent({ title, date, time, endDate, endTime, member, location });
+      await API.createEvent({ title, date, time, endDate, endTime, member, location, notes });
       closeModal();
       renderSchedules(document.getElementById('tabContent'));
     } catch (err) {

@@ -5,6 +5,7 @@ import { renderCorkboard } from './components/corkboard.js';
 import { getOrPromptFamilyWorkspace } from './components/familyManager.js';
 import { startPresencePolling } from './components/familyManager.js';
 import { initForgotPasswordHandlers } from './components/familyManager.js';
+import { renderMessages } from './components/messages.js';
 
 
 const firebaseConfig = {
@@ -101,4 +102,5 @@ export function loadTab(tabName) {
   if (tabName === 'homework') renderHomework(container);
   if (tabName === 'trips') renderTrips(container);
   if (tabName === 'corkboard') renderCorkboard(container);
+  if (tabName === 'messages') renderMessages(container);
 }

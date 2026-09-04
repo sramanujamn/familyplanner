@@ -18,6 +18,7 @@ app.use('/api/homework', require('./routes/homework'));
 app.use('/api/trips', require('./routes/trips'));
 app.use('/api/corkboard', require('./routes/corkboard'));
 app.use('/api/family', require('./routes/family'));
+app.use('/api/messages', require('./routes/messages'));
 
 // Fallback route for Single Page Application
 app.get('*', (req, res) => {

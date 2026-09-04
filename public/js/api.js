@@ -134,6 +134,13 @@ export const API = {
       headers: await getAuthHeaders(), 
       body: JSON.stringify({ status }) 
     }).then(r => r.json()),
+    
+  updateHomework: async (id, updates) => 
+    fetch(`/api/homework/${id}`, { 
+      method: 'PATCH', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify(updates) 
+    }).then(r => r.json()),
 
   deleteHomework: async (id) => 
     fetch(`/api/homework/${id}`, { 
@@ -186,5 +193,27 @@ export const API = {
     fetch(`/api/corkboard/${id}`, { 
       method: 'DELETE', 
       headers: await getAuthHeaders() 
+    }).then(r => r.json()),
+    
+    
+  // ==========================================
+  // FAMILY MESSAGES / CHAT
+  // ==========================================
+
+  getMessages: async () => {
+    const res = await fetch('/api/messages', { headers: await getAuthHeaders() });
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return res.json();
+    }
+    throw new Error('Server returned HTML instead of JSON. Route not found.');
+  },
+
+  sendMessage: async (text, sender) => 
+    fetch('/api/messages', { 
+      method: 'POST', 
+      headers: await getAuthHeaders(), 
+      body: JSON.stringify({ text, sender }) 
     }).then(r => r.json())
+
 };

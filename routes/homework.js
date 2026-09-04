@@ -34,17 +34,41 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PATCH /api/homework/:id
+/**
+ * PATCH /api/homework/:id
+ * Updates homework fields including completed/verified flags, ratings, and status.
+ */
 router.patch('/:id', async (req, res) => {
-  if (!db) return res.status(503).json({ error: "Database not connected." });
   try {
-    const { status } = req.body;
-    await db.collection('homework').doc(req.params.id).update({ status });
-    res.json({ success: true });
+    const { id } = req.params;
+    const { status, completed, verified, rating, title, subject, due, member } = req.body;
+
+    const updateData = {};
+
+    // Map all potential update fields dynamically
+    if (status !== undefined) updateData.status = status;
+    if (completed !== undefined) updateData.completed = Boolean(completed);
+    if (verified !== undefined) updateData.verified = Boolean(verified);
+    if (rating !== undefined) updateData.rating = Number(rating);
+    if (title !== undefined) updateData.title = title;
+    if (subject !== undefined) updateData.subject = subject;
+    if (due !== undefined) updateData.due = due;
+    if (member !== undefined) updateData.member = member;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No valid fields provided for update" });
+    }
+
+    // Update Firestore document
+    await db.collection('homework').doc(id).update(updateData);
+
+    res.json({ id, ...updateData, success: true });
   } catch (err) {
-    res.status(500).json({ error: "Failed to update homework status", details: err.message });
+    console.error(`Error updating homework document ${req.params.id}:`, err);
+    res.status(500).json({ error: "Failed to update homework item" });
   }
 });
+
 
 // DELETE /api/homework/:id
 router.delete('/:id', async (req, res) => {
